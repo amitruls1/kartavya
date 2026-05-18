@@ -1,15 +1,31 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
 
 export default function EpicWorkspace() {
   const [logs, setLogs] = useState<string[]>([]);
-  
-  // Mock WebSocket integration
+  const [status, setStatus] = useState('OFFLINE');
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLogs((prev) => [...prev, `[ws] Heartbeat from Daemon...`]);
-    }, 5000);
-    return () => clearInterval(interval);
+    const socket = io('http://localhost:3001');
+
+    socket.on('connect', () => {
+      setStatus('CONNECTED');
+      setLogs((prev) => [...prev, 'Connected to Kartavya Daemon...']);
+    });
+
+    socket.on('output', (payload) => {
+      setLogs((prev) => [...prev, `[${payload.type.toUpperCase()}] ${payload.data}`]);
+    });
+
+    socket.on('disconnect', () => {
+      setStatus('OFFLINE');
+      setLogs((prev) => [...prev, 'Disconnected from Daemon.']);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   return (
@@ -20,7 +36,12 @@ export default function EpicWorkspace() {
         
         <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 shadow-sm">
           <h2 className="text-lg text-emerald-400 font-semibold mb-2">[EPIC] Implement JWT Auth via Redis</h2>
-          <p className="text-sm text-neutral-400">STATUS: EXECUTING</p>
+          <p className="text-sm text-neutral-400 flex items-center gap-2">
+            DAEMON: 
+            <span className={status === 'CONNECTED' ? 'text-emerald-500' : 'text-rose-500'}>
+              {status}
+            </span>
+          </p>
         </div>
 
         <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 shadow-sm flex-1">
@@ -67,11 +88,10 @@ export default function EpicWorkspace() {
 
         {/* Live Terminal Output */}
         <div className="flex-1 bg-black rounded-lg border border-neutral-800 p-4 overflow-y-auto mt-4 font-mono text-xs">
-          <div className="text-emerald-500 mb-2">Connected to Docker Sandbox tty...</div>
+          <div className="text-emerald-500 mb-2">Streaming from Kartavya Daemon sandbox...</div>
           {logs.map((log, i) => (
-            <div key={i} className="text-neutral-300">{log}</div>
+            <div key={i} className="text-neutral-300 leading-relaxed">{log}</div>
           ))}
-          <div className="text-blue-400 mt-2">{'>'} Pushing commit 2d4a1... running test suite.</div>
         </div>
         
       </div>
